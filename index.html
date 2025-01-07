@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Langflow Chatbot</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="loading-screen">
+    <div>
+      <div class="spinner"></div>
+      <div class="loading-text">Loading...</div>
+    </div>
+  </div>
+  <div id="chat-container">
+    <div id="chat-window">
+      <h1>Hackonauts Chatbot</h1>
+    </div>
+    <div id="chat-input">
+      <input type="text" id="input-field" placeholder="Type your message..." />
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+  <footer>
+    <p>&copy All rights reserved by Hackonauts.</p>
+  </footer>
+  <script src="script.js"></script>
+  <script>
+    const chatWindow = document.getElementById("chat-window");
+    const inputField = document.getElementById("input-field");
+    const sendBtn = document.getElementById("send-btn");
+
+    // Replace with your actual Application token
+    const applicationToken = "AstraCS:CYGDtWmzZUDcAFhRhoXBvkud:69f7e9692f95e9a718a561e00b5ff4e1e09c338360d5cc678197283b1f017bc1";
+    const langflowClient = new LangflowClient("http://localhost:8080/https://api.langflow.astra.datastax.com", applicationToken);
+    const flowIdOrName = "9dfdde2e-38f5-478c-896f-1465874f335d";
+    const langflowId = "470ba697-a40f-481c-9368-a4a919eeb2f2";
+
+    function appendMessage(content, sender) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = sender;
+        messageDiv.textContent = content;
+        chatWindow.appendChild(messageDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const userMessage = inputField.value.trim();
+        if (!userMessage) return;
+
+        appendMessage(userMessage, "user");
+        inputField.value = "";
+        sendBtn.disabled = true;
+        document.querySelector('.loading-screen').style.display = 'flex';
+        inputField.disabled = true;
+
+        try {
+            const tweaks = {};
+            const response = await langflowClient.runFlow(
+                flowIdOrName,
+                langflowId,
+                userMessage,
+                "chat",
+                "chat",
+                tweaks,
+                false,
+                (data) => appendMessage(data.chunk, "bot"),
+                (message) => console.log("Stream closed:", message),
+                (error) => appendMessage("Error occurred during streaming.", "bot")
+            );
+
+            if (!response || !response.outputs) {
+                appendMessage("No response from the chatbot.", "bot");
+                return;
+            }
+
+            const outputMessage = response.outputs[0].outputs[0].outputs.message.message.text;
+            appendMessage(outputMessage, "bot");
+        } catch (error) {
+            console.error("Error in chat:", error);
+            appendMessage("An error occurred. Please try again.", "bot");
+        } finally {
+            sendBtn.disabled = false;
+            document.querySelector('.loading-screen').style.display = 'none';
+            inputField.disabled = false;
+        }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    inputField.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    });
+  </script>
+</body>
+</html>
